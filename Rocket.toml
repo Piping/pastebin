@@ -19,6 +19,7 @@ address = "127.0.0.3"
 port = 8000
 workers = 2
 keep_alive = 5
-log = "normal"
+# log = "normal"
+log = "critical"
 limits = { forms = 32768 }
 secret_key = "Us40Hzj7ltd+hXkrgjfeoV38CALtKNAavRrpJwm8ygo="
