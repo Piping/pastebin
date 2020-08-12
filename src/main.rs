@@ -93,6 +93,22 @@ fn default_view(url: Option<String>, file: Option<String>) -> Markup {
     body {
       div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8" {
       div class="max-w-lg w-full" {
+        ul id="language_switcher" class="flex leading-3 divide-x-2 divide-gray-400 mb-2 text-sm" {
+          li class="px-2 pl-0" {
+              a href="/cn/" onclick="return false;" title="使用中文说明"
+              { "中文" }
+          }
+          li class="px-2 " {
+              a href="/jp/" onclick="return false;" title="日文"
+              { "日文 "}
+          }
+          li class="active px-2" {
+              a href="#" onclick="return false;" title="Use English Text"
+              { "En "}
+          }
+        }
+        div id="visitor_data" class="leading-3 text-gray-500 text-xs"
+        { "1,664 unique visitors (Aug)" }
         form action="/" method="post" id="pasteData"
         {
           div class=r"h-full flex flex-col space-y-6 py-6 bg-white shadow-xl
@@ -125,7 +141,7 @@ fn default_view(url: Option<String>, file: Option<String>) -> Markup {
                       document.execCommand("copy");
                       document.body.removeChild(aux);
                       document.getElementById("copy2boardIcon").classList.add("animate-bounce");
-                      setTimeout(function(){ 
+                      setTimeout(function(){
                         document.getElementById("copy2boardIcon").classList.remove("animate-bounce");
                       }, 300);
                     })();
@@ -134,7 +150,7 @@ fn default_view(url: Option<String>, file: Option<String>) -> Markup {
                   svg id="copy2boardIcon" class="h-8 w-8 "  fill="none" viewBox="0 0 24 24" stroke="currentColor"
                   {
                     path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                         d=r"M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 
+                         d=r"M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002
                              2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2
                              2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3";
                   }
@@ -192,7 +208,7 @@ fn default_view(url: Option<String>, file: Option<String>) -> Markup {
               {
                 "用<id>取回之前复制的内容, 等同于粘贴"
                 br{}
-                "retrieves the content for the paste with id `<id>`" 
+                "retrieves the content for the paste with id `<id>`"
                 br{}
                 "EXAMPLE / 示例: wget https://copy.red/api/<id>"
               }
