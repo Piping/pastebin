@@ -7,6 +7,7 @@ use rocket::{get, routes};
 use rocket::data::{Data};
 use rocket::request::Form;
 use rocket::response::{content::Plain, Debug};
+use rocket::response::Redirect;
 // use rocket_contrib::serve::StaticFiles;
 
 use std::io;
@@ -23,8 +24,8 @@ use crate::paste_id::PasteID;
 const HOST: &str = "https://hjkl.bid";
 const ID_LENGTH: usize = 3;
 
-#[post("/", data = "<paste>")]
-fn upload(paste: Data) -> Result<String, Debug<io::Error>> {
+#[post("/api/paste", data = "<paste>")]
+fn upload_api(paste: Data) -> Result<String, Debug<io::Error>> {
     let id = PasteID::new(ID_LENGTH);
     let filename = format!("upload/{id}", id = id);
     let url = format!("{host}/{id}\n", host = HOST, id = id);
@@ -34,21 +35,30 @@ fn upload(paste: Data) -> Result<String, Debug<io::Error>> {
 
 #[derive(Debug, FromForm)]
 struct PasteForm {
-    pasta: String,
+    paste_text: String,
 }
-#[post("/pasteform", data = "<task>")]
-fn uploadbyform(task: Form<PasteForm>) -> Result<Markup, Debug<io::Error>> {
+#[post("/", data = "<task>")]
+fn upload(task: Form<PasteForm>) -> Result<Redirect, Debug<io::Error>> {
     let id = PasteID::new(ID_LENGTH);
     let filename = format!("upload/{id}", id = id);
-    let url = format!("{host}/{id}\n", host = HOST, id = id);
-    fs::write(Path::new(&filename), &task.pasta)?;
-    Ok(default_view(Some(url)))
+    fs::write(Path::new(&filename), &task.paste_text)?;
+    Ok(Redirect::to(format!("/{id}", id = id)))
+}
+
+#[get("/api/<id>")]
+fn retrieve_api(id: PasteID<'_>) -> Option<Plain<File>> {
+    let filename = format!("upload/{id}", id = id);
+    File::open(&filename).map(|f| Plain(f)).ok()
 }
 
 #[get("/<id>")]
-fn retrieve(id: PasteID<'_>) -> Option<Plain<File>> {
+fn retrieve(id: PasteID<'_>) -> Option<Markup> {
+    let url = format!("{host}/{id}\n", host = HOST, id = id);
     let filename = format!("upload/{id}", id = id);
-    File::open(&filename).map(|f| Plain(f)).ok()
+    match fs::read_to_string(&filename) {
+        Ok(f) => Some(default_view(Some(url), Some(f))),
+        Err(..) => Some(default_view(None, None))
+    }
 }
 
 #[get("/favicon.ico")]
@@ -67,10 +77,12 @@ fn robots() -> &'static str {
 
 #[get("/")]
 fn index() -> Markup {
-    default_view(None)
+    let url = None;
+    let file = None;
+    default_view(url,file)
 }
 
-fn default_view(url: Option<String>) -> Markup {
+fn default_view(url: Option<String>, file: Option<String>) -> Markup {
   html! {
     head {
         meta charset="utf-8" {}
@@ -81,15 +93,15 @@ fn default_view(url: Option<String>) -> Markup {
     body {
       div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8" {
       div class="max-w-lg w-full" {
-        form action="/pasteform" method="post" id="pasteData"
+        form action="/" method="post" id="pasteData"
         {
           div class=r"h-full flex flex-col space-y-6 py-6 bg-white shadow-xl
                   h-full border-2 border-dashed border-gray-200"
           {
               textarea placeholder="Paste your text here"
                   style="border: 3px solid green; padding: 5px;" 
-                  form="pasteData" name="pasta"
-              {}
+                  form="pasteData" name="paste_text"
+              { ( file.unwrap_or("".into()) ) }
               button type="submit" form="pasteData"
               { "Create New Paste" }
           }
@@ -101,6 +113,7 @@ fn default_view(url: Option<String>) -> Markup {
                         leading-none rounded-full flex" role="alert" {
                 span class="flex rounded-full bg-green-500 uppercase px-2 py-1 text-xs font-bold mr-3"
                 { "PASTED" }
+                br;
                 span id="copy2board" class="font-semibold mr-2 text-left flex-auto text-green-800"
                 { (url) }
                 i class="hover:text-teal-600 text-indigo-100" onclick=r#"
@@ -139,31 +152,27 @@ fn default_view(url: Option<String>) -> Markup {
           dl {
             div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-5 sm:gap-4 sm:px-6" {
              dt class="text-sm leading-5 font-medium text-gray-500"
-             { "POST /" }
+             { "POST /api/paste" }
              dd class="mt-1 text-sm leading-5 text-gray-900 sm:mt-0 sm:col-span-4"
              {
                "向网站提交任意数据, 返回带有<id>的网址, 等同于复制"
                br{}
-               "例子: curl --data-binary @file.txt https://hjkl.bid"
-               br{}
                "accepts raw data in the body of the request and responds with a URL of "
                "a page containing the body's content "
                br{}
-               "EXAMPLE: curl --data-binary @file.txt https://hjkl.bid"
+               "EXAMPLE / 示例: curl --data-binary @file.txt https://hjkl.bid/api/paste"
              }
             }
             div class="bg-white px-4 py-5 sm:grid sm:grid-cols-5 sm:gap-4 sm:px-6" {
               dt class="text-sm leading-5 font-medium text-gray-500"
-              { "GET /<id>" }
+              { "GET /api/<id>" }
               dd class="mt-1 text-sm leading-5 text-gray-900 sm:mt-0 sm:col-span-4"
               {
                 "用<id>取回之前复制的内容, 等同于粘贴"
                 br{}
-                "例子: wget https://hjkl.bid/<id>"
-                br{}
                 "retrieves the content for the paste with id `<id>`" 
                 br{}
-                "EXAMPLE: wget https://hjkl.bid/<id>"
+                "EXAMPLE / 示例: wget https://hjkl.bid/api/<id>"
               }
             }
       }}}}}
@@ -177,7 +186,7 @@ fn default_view(url: Option<String>) -> Markup {
 
 fn rocket() -> rocket::Rocket {
     rocket::ignite()
-        .mount("/", routes![index, favicon, robots, upload, uploadbyform, retrieve])
+        .mount("/", routes![index, favicon, robots, upload, upload_api, retrieve, retrieve_api])
 }
 
 fn main() {
