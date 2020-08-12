@@ -4,7 +4,7 @@ use maud::Markup;
 
 #[macro_use] extern crate rocket;
 use rocket::{get, routes};
-use rocket::data::{Data};
+use rocket::data::Data;
 use rocket::request::Form;
 use rocket::response::{content::Plain, Debug};
 use rocket::response::Redirect;
@@ -98,7 +98,7 @@ fn default_view(url: Option<String>, file: Option<String>) -> Markup {
           div class=r"h-full flex flex-col space-y-6 py-6 bg-white shadow-xl
                   h-full border-2 border-dashed border-gray-200"
           {
-              textarea class="border-4 border-red-300 border-opacity-75 hover:border-red-500 p-5"
+              textarea class="border-4 border-red-300 border-opacity-75 focus:border-red-500 hover:border-red-500 p-5"
                   placeholder="Paste your text here"
                   form="pasteData" name="paste_text"
               { ( file.unwrap_or("".into()) ) }
@@ -146,6 +146,28 @@ fn default_view(url: Option<String>, file: Option<String>) -> Markup {
         div class="bg-white shadow overflow-hidden sm:rounded-lg" {
         div class="px-4 py-5 border-b border-gray-200 sm:px-6" {
           h3 class="text-lg leading-6 font-medium text-gray-900"
+          { "使用说明 " }
+          p class="mt-1 max-w-2xl text-sm leading-5 text-gray-500"
+          { "why copy.red? " }
+          dl {
+            div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-5 sm:gap-4 sm:px-6" {
+             dt class="text-sm leading-5 font-medium text-gray-500"
+             { "目的" }
+             dd class="mt-1 text-sm leading-5 text-gray-900 sm:mt-0 sm:col-span-4"
+             {
+               "方便不同设备之间的复制拷贝消息，手机电脑服务器均可，有无图形界面均可"
+             }
+            }
+            div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-5 sm:gap-4 sm:px-6" {
+             dt class="text-sm leading-5 font-medium text-gray-500"
+             { "使用" }
+             dd class="mt-1 text-sm leading-5 text-gray-900 sm:mt-0 sm:col-span-4"
+             {
+               "粘贴数据至文本框，点击按钮，得到可以分享的在其他设备使用的的链接"
+             }
+            }
+          }
+          h3 class="text-lg leading-6 font-medium text-gray-900"
           { "自动化用法 " }
           p class="mt-1 max-w-2xl text-sm leading-5 text-gray-500"
           { "SCRIPT USAGE" }
@@ -175,7 +197,9 @@ fn default_view(url: Option<String>, file: Option<String>) -> Markup {
                 "EXAMPLE / 示例: wget https://copy.red/api/<id>"
               }
             }
-      }}}}}
+          }
+        }}
+      }}
       script {
         r#"
           console.log('Send your Resume!');
