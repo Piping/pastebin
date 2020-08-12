@@ -37,12 +37,12 @@ struct PasteForm {
     pasta: String,
 }
 #[post("/pasteform", data = "<task>")]
-fn uploadbyform(task: Form<PasteForm>) -> Result<String, Debug<io::Error>> {
+fn uploadbyform(task: Form<PasteForm>) -> Result<Markup, Debug<io::Error>> {
     let id = PasteID::new(ID_LENGTH);
     let filename = format!("upload/{id}", id = id);
     let url = format!("{host}/{id}\n", host = HOST, id = id);
     fs::write(Path::new(&filename), &task.pasta)?;
-    Ok(url)
+    Ok(default_view(Some(url)))
 }
 
 #[get("/<id>")]
@@ -67,7 +67,11 @@ fn robots() -> &'static str {
 
 #[get("/")]
 fn index() -> Markup {
-    html! {
+    default_view(None)
+}
+
+fn default_view(url: Option<String>) -> Markup {
+  html! {
     head {
         meta charset="utf-8" {}
         meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" {}
@@ -89,6 +93,42 @@ fn index() -> Markup {
               button type="submit" form="pasteData"
               { "Create New Paste" }
           }
+        }
+        @match url {
+          Some(url) => {
+            div class="text-center py-4 px-4" {
+            div class=r"p-2 bg-green-400 items-center text-indigo-100
+                        leading-none rounded-full flex" role="alert" {
+                span class="flex rounded-full bg-green-500 uppercase px-2 py-1 text-xs font-bold mr-3"
+                { "PASTED" }
+                span id="copy2board" class="font-semibold mr-2 text-left flex-auto text-green-800"
+                { (url) }
+                i class="hover:text-teal-600 text-indigo-100" onclick=r#"
+                    (function copyToClipboard() {
+                      var aux = document.createElement("input");
+                      aux.setAttribute("value", document.getElementById("copy2board").innerHTML);
+                      document.body.appendChild(aux);
+                      aux.select();
+                      document.execCommand("copy");
+                      document.body.removeChild(aux);
+                      document.getElementById("copy2boardIcon").classList.add("animate-bounce");
+                      setTimeout(function(){ 
+                        document.getElementById("copy2boardIcon").classList.remove("animate-bounce");
+                      }, 300);
+                    })();
+                    "#
+                {
+                  svg id="copy2boardIcon" class="h-8 w-8 "  fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  {
+                    path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                         d=r"M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 
+                             2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2
+                             2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3";
+                  }
+                }
+            }}
+          },
+          None => {}
         }
         div class="bg-white shadow overflow-hidden sm:rounded-lg" {
         div class="px-4 py-5 border-b border-gray-200 sm:px-6" {
@@ -132,13 +172,12 @@ fn index() -> Markup {
           console.log('Send your Resume!');
         "#
       }
-    }}
+  }}
 }
 
 fn rocket() -> rocket::Rocket {
     rocket::ignite()
         .mount("/", routes![index, favicon, robots, upload, uploadbyform, retrieve])
-        // .mount("/layui", StaticFiles::from("static/layui"))
 }
 
 fn main() {
