@@ -21,7 +21,7 @@ use crate::paste_id::PasteID;
 
 #[cfg(test)] mod tests;
 
-const HOST: &str = "https://hjkl.bid";
+const HOST: &str = "https://copy.red";
 const ID_LENGTH: usize = 3;
 
 #[post("/api/paste", data = "<paste>")]
@@ -88,7 +88,7 @@ fn default_view(url: Option<String>, file: Option<String>) -> Markup {
         meta charset="utf-8" {}
         meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" {}
         link href="https://unpkg.com/tailwindcss@^1.0/dist/tailwind.min.css" rel="stylesheet" {}
-        title { "你的云端粘贴剪切板" }
+        title { "复制红 - 分享你的云剪切板" }
     }
     body {
       div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8" {
@@ -98,8 +98,8 @@ fn default_view(url: Option<String>, file: Option<String>) -> Markup {
           div class=r"h-full flex flex-col space-y-6 py-6 bg-white shadow-xl
                   h-full border-2 border-dashed border-gray-200"
           {
-              textarea placeholder="Paste your text here"
-                  style="border: 3px solid green; padding: 5px;" 
+              textarea class="border-4 border-red-300 border-opacity-75 hover:border-red-500 p-5"
+                  placeholder="Paste your text here"
                   form="pasteData" name="paste_text"
               { ( file.unwrap_or("".into()) ) }
               button type="submit" form="pasteData"
@@ -160,7 +160,7 @@ fn default_view(url: Option<String>, file: Option<String>) -> Markup {
                "accepts raw data in the body of the request and responds with a URL of "
                "a page containing the body's content "
                br{}
-               "EXAMPLE / 示例: curl --data-binary @file.txt https://hjkl.bid/api/paste"
+               "EXAMPLE / 示例: curl --data-binary @file.txt https://copy.red/api/paste"
              }
             }
             div class="bg-white px-4 py-5 sm:grid sm:grid-cols-5 sm:gap-4 sm:px-6" {
@@ -172,7 +172,7 @@ fn default_view(url: Option<String>, file: Option<String>) -> Markup {
                 br{}
                 "retrieves the content for the paste with id `<id>`" 
                 br{}
-                "EXAMPLE / 示例: wget https://hjkl.bid/api/<id>"
+                "EXAMPLE / 示例: wget https://copy.red/api/<id>"
               }
             }
       }}}}}
