@@ -27,6 +27,7 @@ lazy_static!{
         (ServerAcceptLangauge::SimpliedChinese,
          [
             ("lang-id", "中文"),
+            ("site-title", "复制红 - 分享你的云剪切板"),
             ("paste-button", "新建粘贴"),
             ("help-h1", "使用说明"),
             ("help-h2", "为什么用copy.red?"),
@@ -43,6 +44,7 @@ lazy_static!{
         (ServerAcceptLangauge::Japananese,
          [
             ("lang-id", "日文"),
+            ("site-title", "复制红 - 分享你的云剪切板"),
             ("paste-button", "新建粘贴"),
             ("help-h1", "USAGE"),
             ("help-h2", "Why copy.red?"),
@@ -59,6 +61,7 @@ lazy_static!{
         (ServerAcceptLangauge::English,
          [
             ("lang-id", "En"),
+            ("site-title", "copy.red - your sharable cloud clipboard"),
             ("paste-button", "Create New Paste"),
             ("help-h1", "USAGE"),
             ("help-h2", "Why copy.red?"),
@@ -173,7 +176,7 @@ fn default_view(url: Option<String>, file: Option<String>, lang: ServerAcceptLan
         meta charset="utf-8" {}
         meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" {}
         link href="https://unpkg.com/tailwindcss@^1.0/dist/tailwind.min.css" rel="stylesheet" {}
-        title { "复制红 - 分享你的云剪切板" }
+        title { (TEXT[&lang]["site-title"]) }
     }
     body {
       div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8" {
