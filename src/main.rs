@@ -199,8 +199,7 @@ fn default_view(url: Option<String>, file: Option<String>, lang: ServerAcceptLan
         { "1,664 unique visitors (Aug)" }
         form action="/" method="post" id="pasteData"
         {
-          div class=r"h-full flex flex-col space-y-6 py-6 bg-white shadow-xl
-                  h-full border-2 border-dashed border-gray-200"
+          div class=r"flex flex-col space-y-6 py-6 bg-white shadow-xl border-2 border-dashed border-gray-200"
           {
               textarea class="border-4 border-red-300 border-opacity-75 focus:border-red-500 hover:border-red-500 p-5"
                   placeholder="Paste your text here"
