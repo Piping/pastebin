@@ -3,23 +3,98 @@ use maud::html;
 use maud::Markup;
 
 #[macro_use] extern crate rocket;
+#[macro_use] extern crate lazy_static;
 use rocket::{get, routes};
 use rocket::data::Data;
-use rocket::request::Form;
-use rocket::response::{content::Plain, Debug};
-use rocket::response::Redirect;
-// use rocket_contrib::serve::StaticFiles;
+use rocket::request::{self, Form, Request, FromRequest};
+use rocket::response::{content::Plain, Debug, Redirect};
+use rocket::Outcome;
 
 use std::io;
 use std::fs;
 use std::fs::File;
 use std::path::Path;
+use std::collections::HashMap;
 // use std::borrow::Cow;
 
 mod paste_id;
 use crate::paste_id::PasteID;
 
 #[cfg(test)] mod tests;
+
+lazy_static!{
+    static ref TEXT: HashMap<ServerAcceptLangauge, HashMap<&'static str, &'static str>> = [
+        (ServerAcceptLangauge::SimpliedChinese,
+         [
+            ("lang-id", "中文"),
+            ("paste-button", "新建粘贴"),
+            ("help-h1", "使用说明"),
+            ("help-h2", "为什么用copy.red?"),
+            ("help-msg1-h1", "目的"),
+            ("help-msg1-h2", "方便不同设备之间的复制拷贝消息，手机电脑服务器均可，有无图形界面均可"),
+            ("help-msg2-h1", "使用"),
+            ("help-msg2-h2", "粘贴数据至文本框，点击按钮，得到可以分享的在其他设备使用的的链接"),
+            ("info-h1", "自动化用法"),
+            ("info-h2", "脚本参考"),
+            ("post-api-doc", "向网站提交任意数据, 返回带有<id>的网址, 等同于复制"),
+            ("get-api-doc", "用<id>取回之前复制的内容, 等同于粘贴"),
+         ].iter().copied().collect()
+        ),
+        (ServerAcceptLangauge::Japananese,
+         [
+            ("lang-id", "日文"),
+            ("paste-button", "新建粘贴"),
+         ].iter().copied().collect()
+        ),
+        (ServerAcceptLangauge::English,
+         [
+            ("lang-id", "En"),
+            ("paste-button", "Create New Paste"),
+            ("help-h1", "USAGE"),
+            ("help-h2", "Why copy.red?"),
+            ("help-msg1-h1", "GOAL"),
+            ("help-msg1-h2", "Share your data between devices, e.g phone, laptop, desktop, server etc."),
+            ("help-msg2-h1", "USE"),
+            ("help-msg2-h2", "Paste your data into textbox, click new paste, get the link you can share."),
+            ("info-h1", "Automation"),
+            ("info-h2", "Script usage"),
+            ("get-api-doc", "retrieves the content for the paste with id `<id>`"),
+            ("post-api-doc", "accepts raw data in the body of the request and responds with a URL of a page containing the body's content "),
+         ].iter().copied().collect()
+        ),
+    ].iter().cloned().collect();
+}
+
+#[derive(Debug)]
+enum ServerAcceptLangaugeError {
+}
+#[derive(Debug,Copy,Clone,PartialEq,Eq,Hash)]
+enum ServerAcceptLangauge {
+    SimpliedChinese,
+    Japananese,
+    English,
+}
+impl<'a, 'r> FromRequest<'a, 'r> for ServerAcceptLangauge {
+    type Error = ServerAcceptLangaugeError;
+    fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
+        let first_lang:  Option<&str> = request.headers().get("accept-language").next();
+        match first_lang {
+            // TODO process raw string here
+            Some(lang) => {
+                if lang.contains("en") {
+                    Outcome::Success(ServerAcceptLangauge::English)
+                } else if lang.contains("zh") {
+                    Outcome::Success(ServerAcceptLangauge::SimpliedChinese)
+                } else {
+                    Outcome::Success(ServerAcceptLangauge::SimpliedChinese)
+                }
+            }
+            None => {
+                Outcome::Success(ServerAcceptLangauge::English)
+            }
+        }
+    }
+}
 
 const HOST: &str = "https://copy.red";
 const ID_LENGTH: usize = 3;
@@ -52,12 +127,12 @@ fn retrieve_api(id: PasteID<'_>) -> Option<Plain<File>> {
 }
 
 #[get("/<id>")]
-fn retrieve(id: PasteID<'_>) -> Option<Markup> {
+fn retrieve(id: PasteID<'_>, lang: ServerAcceptLangauge) -> Option<Markup> {
     let url = format!("{host}/{id}\n", host = HOST, id = id);
     let filename = format!("upload/{id}", id = id);
     match fs::read_to_string(&filename) {
-        Ok(f) => Some(default_view(Some(url), Some(f))),
-        Err(..) => Some(default_view(None, None))
+        Ok(f) => Some(default_view(Some(url), Some(f), lang)),
+        Err(..) => Some(default_view(None, None, lang))
     }
 }
 
@@ -76,13 +151,13 @@ fn robots() -> &'static str {
 }
 
 #[get("/")]
-fn index() -> Markup {
+fn index(lang:ServerAcceptLangauge) -> Markup {
     let url = None;
     let file = None;
-    default_view(url,file)
+    default_view(url,file,lang)
 }
 
-fn default_view(url: Option<String>, file: Option<String>) -> Markup {
+fn default_view(url: Option<String>, file: Option<String>, lang: ServerAcceptLangauge) -> Markup {
   html! {
     head {
         meta charset="utf-8" {}
@@ -119,7 +194,7 @@ fn default_view(url: Option<String>, file: Option<String>) -> Markup {
                   form="pasteData" name="paste_text"
               { ( file.unwrap_or("".into()) ) }
               button type="submit" form="pasteData"
-              { "Create New Paste" }
+              { (TEXT[&lang]["paste-button"]) }
           }
         }
         @match url {
@@ -162,56 +237,39 @@ fn default_view(url: Option<String>, file: Option<String>) -> Markup {
         div class="bg-white shadow overflow-hidden sm:rounded-lg" {
         div class="px-4 py-5 border-b border-gray-200 sm:px-6" {
           h3 class="text-lg leading-6 font-medium text-gray-900"
-          { "使用说明 " }
+          { (TEXT[&lang]["help-h1"]) }
           p class="mt-1 max-w-2xl text-sm leading-5 text-gray-500"
-          { "why copy.red? " }
+          { (TEXT[&lang]["help-h2"]) }
           dl {
             div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-5 sm:gap-4 sm:px-6" {
              dt class="text-sm leading-5 font-medium text-gray-500"
-             { "目的" }
+             { (TEXT[&lang]["help-msg1-h1"]) }
              dd class="mt-1 text-sm leading-5 text-gray-900 sm:mt-0 sm:col-span-4"
-             {
-               "方便不同设备之间的复制拷贝消息，手机电脑服务器均可，有无图形界面均可"
-             }
+             { (TEXT[&lang]["help-msg1-h2"]) }
             }
             div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-5 sm:gap-4 sm:px-6" {
              dt class="text-sm leading-5 font-medium text-gray-500"
-             { "使用" }
+             { (TEXT[&lang]["help-msg2-h1"]) }
              dd class="mt-1 text-sm leading-5 text-gray-900 sm:mt-0 sm:col-span-4"
-             {
-               "粘贴数据至文本框，点击按钮，得到可以分享的在其他设备使用的的链接"
-             }
+             { (TEXT[&lang]["help-msg2-h2"]) }
             }
           }
           h3 class="text-lg leading-6 font-medium text-gray-900"
-          { "自动化用法 " }
+          { (TEXT[&lang]["info-h1"]) }
           p class="mt-1 max-w-2xl text-sm leading-5 text-gray-500"
-          { "SCRIPT USAGE" }
+          { (TEXT[&lang]["info-h2"]) }
           dl {
             div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-5 sm:gap-4 sm:px-6" {
              dt class="text-sm leading-5 font-medium text-gray-500"
              { "POST /api/paste" }
              dd class="mt-1 text-sm leading-5 text-gray-900 sm:mt-0 sm:col-span-4"
-             {
-               "向网站提交任意数据, 返回带有<id>的网址, 等同于复制"
-               br{}
-               "accepts raw data in the body of the request and responds with a URL of "
-               "a page containing the body's content "
-               br{}
-               "EXAMPLE / 示例: curl --data-binary @file.txt https://copy.red/api/paste"
-             }
+             { (TEXT[&lang]["get-api-doc"]) br; "curl --data-binary @file.txt https://copy.red/api/paste" }
             }
             div class="bg-white px-4 py-5 sm:grid sm:grid-cols-5 sm:gap-4 sm:px-6" {
               dt class="text-sm leading-5 font-medium text-gray-500"
               { "GET /api/<id>" }
               dd class="mt-1 text-sm leading-5 text-gray-900 sm:mt-0 sm:col-span-4"
-              {
-                "用<id>取回之前复制的内容, 等同于粘贴"
-                br{}
-                "retrieves the content for the paste with id `<id>`"
-                br{}
-                "EXAMPLE / 示例: wget https://copy.red/api/<id>"
-              }
+              { (TEXT[&lang]["get-api-doc"]) br; "curl https://copy.red/api/<id>" }
             }
           }
         }}
