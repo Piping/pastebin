@@ -6,12 +6,14 @@ use maud::Markup;
 #[macro_use] extern crate lazy_static;
 use rocket::{get, routes};
 use rocket::data::Data;
-use rocket::request::{self, Form, Request, FromRequest};
+use rocket::request::{self, Form, Request, FromRequest, FromParam};
 use rocket::response::{content::Plain, Debug, Redirect};
 use rocket::Outcome;
+use rocket::http::RawStr;
 
 use std::io;
 use std::fs;
+use std::fmt;
 use std::fs::File;
 use std::path::Path;
 use std::collections::HashMap;
@@ -88,7 +90,7 @@ enum ServerAcceptLangauge {
     English,
 }
 impl<'a, 'r> FromRequest<'a, 'r> for ServerAcceptLangauge {
-    type Error = ServerAcceptLangaugeError;
+    type Error = &'r RawStr;
     fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
         let first_lang:  Option<&str> = request.headers().get("accept-language").next();
         match first_lang {
@@ -108,6 +110,26 @@ impl<'a, 'r> FromRequest<'a, 'r> for ServerAcceptLangauge {
         }
     }
 }
+impl<'r> FromParam<'r> for ServerAcceptLangauge {
+    type Error = &'r RawStr;
+    fn from_param(param: &'r RawStr) -> Result<Self, Self::Error> {
+        match &param[..] {
+            "zh" => Ok(ServerAcceptLangauge::SimpliedChinese),
+            "jp" => Ok(ServerAcceptLangauge::Japananese),
+            "en" => Ok(ServerAcceptLangauge::English),
+            _ => Ok(ServerAcceptLangauge::English),
+        }
+    }
+}
+impl fmt::Display for ServerAcceptLangauge {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+              ServerAcceptLangauge::SimpliedChinese => write!(f, "zh")
+            , ServerAcceptLangauge::Japananese => write!(f, "zh")
+            , ServerAcceptLangauge::English => write!(f, "zh")
+        }
+    }
+}
 
 const HOST: &str = "https://copy.red";
 const ID_LENGTH: usize = 3;
@@ -116,7 +138,7 @@ const ID_LENGTH: usize = 3;
 fn upload_api(paste: Data) -> Result<String, Debug<io::Error>> {
     let id = PasteID::new(ID_LENGTH);
     let filename = format!("upload/{id}", id = id);
-    let url = format!("{host}/{id}\n", host = HOST, id = id);
+    let url = format!("{host}/api/{id}\n", host = HOST, id = id);
     paste.stream_to_file(Path::new(&filename))?;
     Ok(url)
 }
@@ -125,23 +147,23 @@ fn upload_api(paste: Data) -> Result<String, Debug<io::Error>> {
 struct PasteForm {
     paste_text: String,
 }
-#[post("/", data = "<task>")]
-fn upload(task: Form<PasteForm>) -> Result<Redirect, Debug<io::Error>> {
+#[post("/<lang>", data = "<task>")]
+fn upload(lang: ServerAcceptLangauge, task: Form<PasteForm>) -> Result<Redirect, Debug<io::Error>> {
     let id = PasteID::new(ID_LENGTH);
     let filename = format!("upload/{id}", id = id);
     fs::write(Path::new(&filename), &task.paste_text)?;
-    Ok(Redirect::to(format!("/{id}", id = id)))
+    Ok(Redirect::to(format!("/{lang}/{id}", lang=lang, id = id)))
 }
 
-#[get("/api/<id>")]
+#[get("/api/<id>", rank=1)]
 fn retrieve_api(id: PasteID<'_>) -> Option<Plain<File>> {
     let filename = format!("upload/{id}", id = id);
     File::open(&filename).map(|f| Plain(f)).ok()
 }
 
-#[get("/<id>")]
+#[get("/<lang>/<id>")]
 fn retrieve(id: PasteID<'_>, lang: ServerAcceptLangauge) -> Option<Markup> {
-    let url = format!("{host}/{id}\n", host = HOST, id = id);
+    let url = format!("{host}/{lang}/{id}\n", host = HOST, lang=lang, id = id);
     let filename = format!("upload/{id}", id = id);
     match fs::read_to_string(&filename) {
         Ok(f) => Some(default_view(Some(url), Some(f), lang)),
@@ -163,11 +185,26 @@ fn robots() -> &'static str {
     "
 }
 
-#[get("/")]
-fn index(lang:ServerAcceptLangauge) -> Markup {
+#[get("/<lang>")]
+fn localized_index(lang: ServerAcceptLangauge) -> Markup {
     let url = None;
     let file = None;
     default_view(url,file,lang)
+}
+
+#[get("/")]
+fn index(lang:ServerAcceptLangauge) -> Redirect {
+    match lang {
+       ServerAcceptLangauge::SimpliedChinese => Redirect::to("/zh"),
+       ServerAcceptLangauge::English => Redirect::to("/en"),
+       ServerAcceptLangauge::Japananese => Redirect::to("/jp"),
+    }
+}
+
+fn rocket() -> rocket::Rocket {
+    rocket::ignite()
+        .mount("/", routes![index, localized_index, favicon,
+            robots, upload, upload_api, retrieve, retrieve_api])
 }
 
 fn default_view(url: Option<String>, file: Option<String>, lang: ServerAcceptLangauge) -> Markup {
@@ -183,21 +220,21 @@ fn default_view(url: Option<String>, file: Option<String>, lang: ServerAcceptLan
       div class="max-w-lg w-full" {
         ul id="language_switcher" class="flex leading-3 divide-x-2 divide-gray-400 mb-2 text-sm" {
           li class="px-2 pl-0" {
-              a href="/cn/" onclick="return false;" title="使用中文说明"
+              a href=(format!("/{}",lang)) title="使用中文说明"
               { "中文" }
           }
           li class="px-2 " {
-              a href="/jp/" onclick="return false;" title="日文"
+              a href="/jp/" title="日文"
               { "日文 "}
           }
           li class="active px-2" {
-              a href="#" onclick="return false;" title="Use English Text"
+              a href="/en" title="Use English Text"
               { "En "}
           }
         }
         div id="visitor_data" class="leading-3 text-gray-500 text-xs"
         { "1,664 unique visitors (Aug)" }
-        form action="/" method="post" id="pasteData"
+        form action="/en" method="post" id="pasteData"
         {
           div class=r"flex flex-col space-y-6 py-6 bg-white shadow-xl border-2 border-dashed border-gray-200"
           {
@@ -292,11 +329,6 @@ fn default_view(url: Option<String>, file: Option<String>, lang: ServerAcceptLan
         "#
       }
   }}
-}
-
-fn rocket() -> rocket::Rocket {
-    rocket::ignite()
-        .mount("/", routes![index, favicon, robots, upload, upload_api, retrieve, retrieve_api])
 }
 
 fn main() {
