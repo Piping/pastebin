@@ -80,9 +80,6 @@ lazy_static!{
     ].iter().cloned().collect();
 }
 
-#[derive(Debug)]
-enum ServerAcceptLangaugeError {
-}
 #[derive(Debug,Copy,Clone,PartialEq,Eq,Hash)]
 enum ServerAcceptLangauge {
     SimpliedChinese,
@@ -125,8 +122,8 @@ impl fmt::Display for ServerAcceptLangauge {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
               ServerAcceptLangauge::SimpliedChinese => write!(f, "zh")
-            , ServerAcceptLangauge::Japananese => write!(f, "zh")
-            , ServerAcceptLangauge::English => write!(f, "zh")
+            , ServerAcceptLangauge::Japananese => write!(f, "jp")
+            , ServerAcceptLangauge::English => write!(f, "en")
         }
     }
 }
@@ -194,17 +191,25 @@ fn localized_index(lang: ServerAcceptLangauge) -> Markup {
 
 #[get("/")]
 fn index(lang:ServerAcceptLangauge) -> Redirect {
-    match lang {
-       ServerAcceptLangauge::SimpliedChinese => Redirect::to("/zh"),
-       ServerAcceptLangauge::English => Redirect::to("/en"),
-       ServerAcceptLangauge::Japananese => Redirect::to("/jp"),
-    }
+    Redirect::to(format!("/{}",lang))
 }
 
 fn rocket() -> rocket::Rocket {
     rocket::ignite()
         .mount("/", routes![index, localized_index, favicon,
             robots, upload, upload_api, retrieve, retrieve_api])
+}
+
+fn language_switch_link(url: &Option<String>, lang: &ServerAcceptLangauge) -> String {
+    match url {
+        Some(url) => {
+            match url.rsplit("/").nth(0) {
+                Some(paste) => format!("/{}/{}", lang, paste),
+                None => format!("/{}", lang),
+            }
+        },
+        None => format!("/{}", lang),
+    }
 }
 
 fn default_view(url: Option<String>, file: Option<String>, lang: ServerAcceptLangauge) -> Markup {
@@ -220,21 +225,24 @@ fn default_view(url: Option<String>, file: Option<String>, lang: ServerAcceptLan
       div class="max-w-lg w-full" {
         ul id="language_switcher" class="flex leading-3 divide-x-2 divide-gray-400 mb-2 text-sm" {
           li class="px-2 pl-0" {
-              a href=(format!("/{}",lang)) title="使用中文说明"
+              a href=(language_switch_link(&url,&ServerAcceptLangauge::SimpliedChinese))
+                title="使用说明"
               { "中文" }
           }
           li class="px-2 " {
-              a href="/jp/" title="日文"
+              a href=(language_switch_link(&url,&ServerAcceptLangauge::Japananese))
+                title="日文"
               { "日文 "}
           }
           li class="active px-2" {
-              a href="/en" title="Use English Text"
+              a href=(language_switch_link(&url,&ServerAcceptLangauge::English))
+                title="Use English Text"
               { "En "}
           }
         }
         div id="visitor_data" class="leading-3 text-gray-500 text-xs"
         { "1,664 unique visitors (Aug)" }
-        form action="/en" method="post" id="pasteData"
+        form action=(format!("/{}",lang)) method="post" id="pasteData"
         {
           div class=r"flex flex-col space-y-6 py-6 bg-white shadow-xl border-2 border-dashed border-gray-200"
           {
