@@ -44,6 +44,16 @@ lazy_static!{
          [
             ("lang-id", "日文"),
             ("paste-button", "新建粘贴"),
+            ("help-h1", "USAGE"),
+            ("help-h2", "Why copy.red?"),
+            ("help-msg1-h1", "GOAL"),
+            ("help-msg1-h2", "Share your data between devices, e.g phone, laptop, desktop, server etc."),
+            ("help-msg2-h1", "USE"),
+            ("help-msg2-h2", "Paste your data into textbox, click new paste, get the link you can share."),
+            ("info-h1", "Automation"),
+            ("info-h2", "Script usage"),
+            ("get-api-doc", "retrieves the content for the paste with id `<id>`"),
+            ("post-api-doc", "accepts raw data in the body of the request and responds with a URL of a page containing the body's content "),
          ].iter().copied().collect()
         ),
         (ServerAcceptLangauge::English,
@@ -81,12 +91,12 @@ impl<'a, 'r> FromRequest<'a, 'r> for ServerAcceptLangauge {
         match first_lang {
             // TODO process raw string here
             Some(lang) => {
-                if lang.contains("en") {
-                    Outcome::Success(ServerAcceptLangauge::English)
-                } else if lang.contains("zh") {
+                if lang.contains("zh") {
                     Outcome::Success(ServerAcceptLangauge::SimpliedChinese)
+                } else if lang.contains("jp") {
+                    Outcome::Success(ServerAcceptLangauge::Japananese)
                 } else {
-                    Outcome::Success(ServerAcceptLangauge::SimpliedChinese)
+                    Outcome::Success(ServerAcceptLangauge::English)
                 }
             }
             None => {
