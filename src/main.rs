@@ -194,12 +194,6 @@ fn index(lang:ServerAcceptLangauge) -> Redirect {
     Redirect::to(format!("/{}",lang))
 }
 
-fn rocket() -> rocket::Rocket {
-    rocket::ignite()
-        .mount("/", routes![index, localized_index, favicon,
-            robots, upload, upload_api, retrieve, retrieve_api])
-}
-
 fn language_switch_link(url: &Option<String>, lang: &ServerAcceptLangauge) -> String {
     match url {
         Some(url) => {
@@ -354,8 +348,26 @@ fn default_view(url: Option<String>, file: Option<String>, lang: ServerAcceptLan
           console.log('Send your Resume!');
         "#
       }
-      script src="http://127.0.0.3:35729/livereload.js" {}
+      ( development_script_tag() )
   }}
+}
+
+#[cfg(debug_assertions)]
+fn development_script_tag() -> Markup {
+    html! {
+      script src="http://127.0.0.3:35729/livereload.js" {}
+    }
+}
+
+#[cfg(not(debug_assertions))]
+fn development_script_tag() -> Markup {
+    html! { }
+}
+
+fn rocket() -> rocket::Rocket {
+    rocket::ignite()
+        .mount("/", routes![index, localized_index, favicon, instantclick,
+            robots, upload, upload_api, retrieve, retrieve_api])
 }
 
 fn main() {

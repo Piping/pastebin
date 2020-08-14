@@ -2,4 +2,5 @@
 rustflags = [
     "-C", "link-arg=-fuse-ld=lld",
     "-C", "embed-bitcode=no",
+    "-Z", "share-generics=y"
 ]
