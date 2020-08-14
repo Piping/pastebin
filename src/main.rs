@@ -246,7 +246,8 @@ fn default_view(url: Option<String>, file: Option<String>, lang: ServerAcceptLan
         {
           div class=r"flex flex-col space-y-6 py-6 bg-white shadow-xl border-2 border-dashed border-gray-200"
           {
-              textarea class="border-4 border-red-300 border-opacity-75 focus:border-red-500 hover:border-red-500 p-5"
+              textarea class=r"border-4 border-red-300 border-opacity-75
+                               focus:border-red-500 hover:border-red-500 p-5"
                   placeholder="Paste your text here"
                   form="pasteData" name="paste_text"
               { ( file.unwrap_or("".into()) ) }
@@ -353,6 +354,7 @@ fn default_view(url: Option<String>, file: Option<String>, lang: ServerAcceptLan
           console.log('Send your Resume!');
         "#
       }
+      script src="http://127.0.0.3:35729/livereload.js" {}
   }}
 }
 
