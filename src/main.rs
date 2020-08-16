@@ -8,8 +8,9 @@ use rocket::{get, routes};
 use rocket::data::Data;
 use rocket::request::{self, Form, Request, FromRequest, FromParam};
 use rocket::response::{content::Plain, Debug, Redirect};
-use rocket::Outcome;
 use rocket::http::RawStr;
+use rocket::Outcome;
+use rocket::State;
 
 use std::io;
 use std::fs;
@@ -17,12 +18,17 @@ use std::fmt;
 use std::fs::File;
 use std::path::Path;
 use std::collections::HashMap;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 // use std::borrow::Cow;
 
 mod paste_id;
 use crate::paste_id::PasteID;
 
 #[cfg(test)] mod tests;
+
+
+struct HitCount(AtomicUsize);
 
 lazy_static!{
     static ref TEXT: HashMap<ServerAcceptLangauge, HashMap<&'static str, &'static str>> = [
@@ -183,7 +189,8 @@ fn robots() -> &'static str {
 }
 
 #[get("/<lang>")]
-fn localized_index(lang: ServerAcceptLangauge) -> Markup {
+fn localized_index(lang: ServerAcceptLangauge, hit_count: State<HitCount>) -> Markup {
+    hit_count.0.fetch_add(1, Ordering::Relaxed);
     let url = None;
     let file = None;
     default_view(url,file,lang)
@@ -192,6 +199,11 @@ fn localized_index(lang: ServerAcceptLangauge) -> Markup {
 #[get("/")]
 fn index(lang:ServerAcceptLangauge) -> Redirect {
     Redirect::to(format!("/{}",lang))
+}
+
+#[get("/hitcount")]
+fn hitcount(hit_count: State<HitCount>) -> String {
+    hit_count.0.load(Ordering::Relaxed).to_string()
 }
 
 fn language_switch_link(url: &Option<String>, lang: &ServerAcceptLangauge) -> String {
@@ -366,8 +378,12 @@ fn development_script_tag() -> Markup {
 
 fn rocket() -> rocket::Rocket {
     rocket::ignite()
-        .mount("/", routes![index, localized_index, favicon, instantclick,
-            robots, upload, upload_api, retrieve, retrieve_api])
+        .mount("/", routes![
+            index, localized_index, favicon, instantclick,
+            robots, upload, upload_api, retrieve, retrieve_api,
+            hitcount
+        ])
+        .manage(HitCount(AtomicUsize::new(0)))
 }
 
 fn main() {
