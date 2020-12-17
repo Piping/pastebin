@@ -159,7 +159,7 @@ fn upload(lang: ServerAcceptLangauge, task: Form<PasteForm>) -> Result<Redirect,
 }
 
 #[get("/api/<id>", rank=1)]
-fn retrieve_api(id: PasteID<'_>) -> Option<Plain<File>> {
+fn retrieve_api(id: PasteID<'_>, hit_count: State<HitCount>) -> Option<Plain<File>> {
     let filename = format!("upload/{id}", id = id);
     File::open(&filename).map(|f| Plain(f)).ok()
 }
@@ -177,6 +177,12 @@ fn retrieve(id: PasteID<'_>, lang: ServerAcceptLangauge) -> Option<Markup> {
 #[get("/favicon.ico")]
 fn favicon() -> Option<Plain<File>> {
     let filename = format!("static/icons/favicon.ico");
+    File::open(&filename).map(|f| Plain(f)).ok()
+}
+
+#[get("/instantclick.min.js")]
+fn instantclick() -> Option<Plain<File>> {
+    let filename = format!("static/instantclick.min.js");
     File::open(&filename).map(|f| Plain(f)).ok()
 }
 
@@ -211,17 +217,8 @@ fn language_switch_link(url: &Option<String>, lang: &ServerAcceptLangauge) -> St
     }
 }
 
-fn default_view(url: Option<String>, file: Option<String>, lang: ServerAcceptLangauge) -> Markup {
-  html! {
-    head {
-        meta charset="utf-8" {}
-        meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" {}
-        link href="https://unpkg.com/tailwindcss@^1.0/dist/tailwind.min.css" rel="stylesheet" {}
-        title { (TEXT[&lang]["site-title"]) }
-    }
-    body {
-      div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8" {
-      div class="max-w-lg w-full" {
+fn language_switch_view(url: &Option<String>, lang: &ServerAcceptLangauge) -> Markup {
+    html! {
         ul id="language_switcher" class="flex leading-3 divide-x-2 divide-gray-400 mb-2 text-sm" {
           li class="px-2 pl-0" {
               a href=(language_switch_link(&url,&ServerAcceptLangauge::SimpliedChinese))
@@ -241,11 +238,16 @@ fn default_view(url: Option<String>, file: Option<String>, lang: ServerAcceptLan
         }
         div id="visitor_data" class="leading-3 text-gray-500 text-xs"
         { "1,664 unique visitors (Aug)" }
+    }
+}
+
+fn paste_textarea_view(url: &Option<String>, file: Option<String>, lang: &ServerAcceptLangauge) -> Markup {
+    html! {
         form action=(format!("/{}",lang)) method="post" id="pasteData"
         {
           div class=r"flex flex-col space-y-6 py-6 bg-white shadow-xl border-2 border-dashed border-gray-200"
           {
-              textarea class=r"border-4 border-red-300 border-opacity-75
+              textarea class=r"border-4 border-red-300 border-opacity-75 h-32
                                focus:border-red-500 hover:border-red-500 p-5"
                   placeholder="Paste your text here"
                   form="pasteData" name="paste_text"
@@ -291,6 +293,11 @@ fn default_view(url: Option<String>, file: Option<String>, lang: ServerAcceptLan
           },
           None => {}
         }
+    }
+}
+
+fn description_view(lang: &ServerAcceptLangauge) -> Markup {
+     html! {
         div class="bg-white shadow overflow-hidden sm:rounded-lg" {
         div class="px-4 py-5 border-b border-gray-200 sm:px-6" {
           h3 class="text-lg leading-6 font-medium text-gray-900"
@@ -330,6 +337,64 @@ fn default_view(url: Option<String>, file: Option<String>, lang: ServerAcceptLan
             }
           }
         }}
+     }
+}
+
+fn chatbox_view() -> Markup {
+    html!{
+      div id="chatbox" class="my-2 border-2 border-dashed" {
+       div class="w-full bg-green-400 h-16 pt-2 text-white flex justify-between shadow-md" {
+          div to="/register_ws" {
+            svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-12 h-12 my-1 text-green-100 ml-2"
+            {
+              path class="text-green-100 fill-current" d="M9.41 11H17a1 1 0 0 1 0 2H9.41l2.3 2.3a1 1 0 1 1-1.42 1.4l-4-4a1 1 0 0 1 0-1.4l4-4a1 1 0 0 1 1.42 1.4L9.4 11z"
+              {}
+            }
+          }
+          div class="my-3 text-green-100 font-bold text-lg tracking-wide"
+          { "@rallip" }
+          svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="icon-dots-vertical w-8 h-8 mt-2 mr-2"
+          {
+            path class="text-green-100 fill-current" fill-rule="evenodd"
+                 d="M12 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"
+            {}
+          }
+       }
+
+       div class="mt-3 mb-16 w-full overflow-y-auto" {
+            div class="bg-gray-300 w-3/4 mx-4 my-2 p-2 rounded-lg h-16"
+              { "this is a basic mobile chat layout, build with tailwind css" }
+            div class="bg-gray-300 w-3/4 mx-4 my-2 p-2 rounded-lg h-16"
+              { "this is a basic mobile chat layout, build with tailwind css" }
+            div class="bg-green-300 float-right w-3/4 mx-4 my-2 p-2 rounded-lg clearfix h-16" {
+                "check my twitter to see when it will be released."
+            }
+       }
+
+       div class="w-full flex bg-green-100 justify-between self-end" {
+         textarea
+             class="flex-grow m-2 w-5/7 py-2 px-4 mr-1 rounded border border-gray-300 bg-gray-200" rows="1"
+             placeholder="Message..."
+           {}
+         button class="focus:shadow-outline" {
+           svg class="svg-inline--fa text-green-400 fa-paper-plane fa-w-16 w-12 h-12 py-2 mr-2" aria-hidden="true"
+               focusable="false" data-prefix="fas" data-icon="paper-plane"
+               role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"
+           {
+             path fill="currentColor"
+                  d=r#"M476 3.2L12.5 270.6c-18.1 10.4-15.8 35.6 2.2 43.2L121 358.4l287.3-253.2c5.5-4.9
+                       13.3 2.6 8.6 8.3L176 407v80.5c0 23.6 28.5 32.9 42.5 15.8L282 426l124.6 52.2c14.2
+                       6 30.4-2.9 33-18.2l72-432C515 7.8 493.3-6.8 476 3.2z"#
+             {}
+           }
+         }
+       }
+      }
+    }
+}
+
+fn footer_view() -> Markup {
+    html!{
         div class="flex justify-center" {
         a href="https://github.com/piping/pastebin" alt="Github repo link for this page"
         {
@@ -347,7 +412,28 @@ fn default_view(url: Option<String>, file: Option<String>, lang: ServerAcceptLan
               }
         }
         }
-      }}
+    }
+}
+
+fn default_view(url: Option<String>, file: Option<String>, lang: ServerAcceptLangauge) -> Markup {
+  html! {
+    head {
+        meta charset="utf-8" {}
+        meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" {}
+        link href="https://unpkg.com/tailwindcss@^1.0/dist/tailwind.min.css" rel="stylesheet" {}
+        script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v2.x.x/dist/alpine.min.js" defer? {}
+        title { (TEXT[&lang]["site-title"]) }
+    }
+    body {
+      div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8" {
+       div class="max-w-lg w-full" {
+        (language_switch_view(&url,&lang))
+        (paste_textarea_view(&url,file, &lang))
+        (chatbox_view())
+        (description_view(&lang))
+        (footer_view())
+       }
+      }
       script {
         r#"
           console.log('Send your Resume!');
