@@ -34,4 +34,8 @@ deploy() {
     cargo build --release
 }
 
+reload() {
+    pkill pastebin
+}
+
 "$@"

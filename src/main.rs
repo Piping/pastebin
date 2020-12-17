@@ -150,12 +150,12 @@ fn upload_api(paste: Data) -> Result<String, Debug<io::Error>> {
 struct PasteForm {
     paste_text: String,
 }
-#[post("/<lang>", data = "<task>")]
+#[post("/", data = "<task>")]
 fn upload(lang: ServerAcceptLangauge, task: Form<PasteForm>) -> Result<Redirect, Debug<io::Error>> {
     let id = PasteID::new(ID_LENGTH);
     let filename = format!("upload/{id}", id = id);
     fs::write(Path::new(&filename), &task.paste_text)?;
-    Ok(Redirect::to(format!("/{lang}/{id}", lang=lang, id = id)))
+    Ok(Redirect::to(format!("/{id}", id = id)))
 }
 
 #[get("/api/<id>", rank=1)]
@@ -164,9 +164,9 @@ fn retrieve_api(id: PasteID<'_>) -> Option<Plain<File>> {
     File::open(&filename).map(|f| Plain(f)).ok()
 }
 
-#[get("/<lang>/<id>")]
+#[get("/<id>")]
 fn retrieve(id: PasteID<'_>, lang: ServerAcceptLangauge) -> Option<Markup> {
-    let url = format!("{host}/{lang}/{id}\n", host = HOST, lang=lang, id = id);
+    let url = format!("{host}/{id}\n", host = HOST, id = id);
     let filename = format!("upload/{id}", id = id);
     match fs::read_to_string(&filename) {
         Ok(f) => Some(default_view(Some(url), Some(f), lang)),
@@ -188,17 +188,10 @@ fn robots() -> &'static str {
     "
 }
 
-#[get("/<lang>")]
-fn localized_index(lang: ServerAcceptLangauge, hit_count: State<HitCount>) -> Markup {
-    hit_count.0.fetch_add(1, Ordering::Relaxed);
-    let url = None;
-    let file = None;
-    default_view(url,file,lang)
-}
-
 #[get("/")]
-fn index(lang:ServerAcceptLangauge) -> Redirect {
-    Redirect::to(format!("/{}",lang))
+fn index(lang:ServerAcceptLangauge, hit_count: State<HitCount>) -> Redirect {
+    hit_count.0.fetch_add(1, Ordering::Relaxed);
+    default_view(url,file,lang)
 }
 
 #[get("/hitcount")]
@@ -379,7 +372,7 @@ fn development_script_tag() -> Markup {
 fn rocket() -> rocket::Rocket {
     rocket::ignite()
         .mount("/", routes![
-            index, localized_index, favicon, instantclick,
+            index, favicon, 
             robots, upload, upload_api, retrieve, retrieve_api,
             hitcount
         ])
